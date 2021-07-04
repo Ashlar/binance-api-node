@@ -688,6 +688,29 @@ const user = (opts, variator) => (cb, transform) => {
   return makeStream(false)
 }
 
+const futuresAllMarkPricesTransform = m => m.map(x => ({
+  eventType: x.e,
+  eventTime: x.E,
+  symbol: x.s,
+  markPrice: x.p,
+  indexPrice: x.i,
+  settlePrice: x.P,
+  fundingRate: x.r,
+  nextFundingRate: x.T,
+}))
+
+const futuresAllMarkPrices = (payload, cb, transform = true) => {  
+  const variant = payload.updateSpeed === '1s' ? '!markPrice@arr@1s' : '!markPrice@arr'
+
+  const w = openWebSocket(`${endpoints.futures}/${variant}`)
+
+  w.onmessage = msg => {
+    const arr = JSON.parse(msg.data)
+    cb(transform ? futuresAllMarkPricesTransform(arr) : arr)
+  }
+  return options => cache.close(1000, 'Close handle was called', { keepClosed: true, ...options })
+}
+
 export default opts => {
   if (opts && opts.wsBase) {
     endpoints.base = opts.wsBase
@@ -724,5 +747,6 @@ export default opts => {
     futuresAllLiquidations,
     futuresUser: user(opts, 'futures'),
     futuresCustomSubStream: (payload, cb) => customSubStream(payload, cb, 'futures'),
+    futuresAllMarkPrices: (payload, cb) => futuresAllMarkPrices(payload, cb),
   }
 }
